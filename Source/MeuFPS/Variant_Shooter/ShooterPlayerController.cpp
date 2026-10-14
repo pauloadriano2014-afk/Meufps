@@ -9,12 +9,19 @@
 #include "GameFramework/PlayerStart.h"
 #include "ShooterCharacter.h"
 #include "ShooterBulletCounterUI.h"
+#include "ShooterHUD.h"
 #include "MeuFPS.h"
 #include "Widgets/Input/SVirtualJoystick.h"
 
 void AShooterPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// use the HUD that draws the ammo readout and the hit marker on top of the widgets
+	if (IsLocalPlayerController())
+	{
+		ClientSetHUD(AShooterHUD::StaticClass());
+	}
 }
 
 void AShooterPlayerController::SetupInputComponent()

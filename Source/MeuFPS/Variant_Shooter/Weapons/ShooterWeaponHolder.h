@@ -52,4 +52,7 @@ public:
 
 	/** Notifies the owner that the weapon cooldown has expired and it's ready to shoot again */
 	virtual void OnSemiWeaponRefire() = 0;
+
+	/** Notifies the owner that a shot hit a character. Optional, holders that don't care can ignore it */
+	virtual void OnHitConfirmed(bool bHeadshot) {}
 };

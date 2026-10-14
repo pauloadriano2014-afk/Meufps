@@ -24,13 +24,26 @@ AShooterCharacter::AShooterCharacter()
 	// create the noise emitter component
 	PawnNoiseEmitter = CreateDefaultSubobject<UPawnNoiseEmitterComponent>(TEXT("Pawn Noise Emitter"));
 
+	// the aim zoom, sprint speed and crouch height are updated every frame
+	PrimaryActorTick.bCanEverTick = true;
+
 	// configure movement
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 600.0f, 0.0f);
+
+	// allow crouching with a shorter capsule and a slower crouch walk
+	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
+	GetCharacterMovement()->CrouchedHalfHeight = 60.0f;
+	GetCharacterMovement()->MaxWalkSpeedCrouched = 250.0f;
 }
 
 void AShooterCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// remember the normal values that aiming, sprinting and crouching are applied on top of
+	WalkSpeed = GetCharacterMovement()->MaxWalkSpeed;
+	DefaultFOV = GetFirstPersonCameraComponent()->FieldOfView;
+	DefaultFPMeshLocation = GetFirstPersonMesh()->GetRelativeLocation();
 
 	// reset HP to max
 	CurrentHP = MaxHP;
@@ -84,8 +97,79 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 		{
 			EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Started, this, &AShooterCharacter::DoReload);
 		}
+
+		// Aim down sights. Right mouse button, hold
+		if (!AimAction)
+		{
+			AimAction = CreateRuntimeKeyAction(TEXT("RuntimeAimAction"), EKeys::RightMouseButton);
+		}
+
+		if (AimAction)
+		{
+			EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Started, this, &AShooterCharacter::DoStartAim);
+			EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Completed, this, &AShooterCharacter::DoStopAim);
+		}
+
+		// Sprint. Left Shift, hold
+		if (!SprintAction)
+		{
+			SprintAction = CreateRuntimeKeyAction(TEXT("RuntimeSprintAction"), EKeys::LeftShift);
+		}
+
+		if (SprintAction)
+		{
+			EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &AShooterCharacter::DoStartSprint);
+			EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &AShooterCharacter::DoStopSprint);
+		}
+
+		// Crouch. Left Ctrl, hold
+		if (!CrouchAction)
+		{
+			CrouchAction = CreateRuntimeKeyAction(TEXT("RuntimeCrouchAction"), EKeys::LeftControl);
+		}
+
+		if (CrouchAction)
+		{
+			EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Started, this, &AShooterCharacter::DoStartCrouch);
+			EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Completed, this, &AShooterCharacter::DoStopCrouch);
+		}
 	}
 
+}
+
+void AShooterCharacter::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	UCharacterMovementComponent* Movement = GetCharacterMovement();
+
+	// zoom the camera in and out when aiming down sights
+	UCameraComponent* Camera = GetFirstPersonCameraComponent();
+	const float TargetFOV = bIsAiming ? AimFOV : DefaultFOV;
+	Camera->SetFieldOfView(FMath::FInterpTo(Camera->FieldOfView, TargetFOV, DeltaSeconds, AimInterpSpeed));
+
+	// pick the walk speed. Aiming slows the character down. Sprinting only counts while moving forward
+	float TargetSpeed = WalkSpeed;
+
+	if (bIsAiming)
+	{
+		TargetSpeed = WalkSpeed * AimSpeedFactor;
+
+	} else if (bWantsToSprint && !bIsCrouched && !IsDead()) {
+
+		const FVector MoveDirection = GetVelocity().GetSafeNormal2D();
+
+		if (FVector::DotProduct(MoveDirection, GetActorForwardVector()) > 0.5f)
+		{
+			TargetSpeed = WalkSpeed * SprintSpeedMultiplier;
+		}
+	}
+
+	Movement->MaxWalkSpeed = FMath::FInterpTo(Movement->MaxWalkSpeed, TargetSpeed, DeltaSeconds, 8.0f);
+
+	// the character mesh stays put when the capsule shrinks, so lower the eyes by moving the first person mesh the camera is attached to
+	CurrentEyeDrop = FMath::FInterpTo(CurrentEyeDrop, bIsCrouched ? CrouchEyeDrop : 0.0f, DeltaSeconds, 10.0f);
+	GetFirstPersonMesh()->SetRelativeLocation(DefaultFPMeshLocation - FVector(0.0f, 0.0f, CurrentEyeDrop));
 }
 
 UInputAction* AShooterCharacter::CreateRuntimeKeyAction(const TCHAR* ActionName, const FKey& Key)
@@ -235,6 +319,58 @@ void AShooterCharacter::DoReload()
 	}
 }
 
+void AShooterCharacter::DoStartAim()
+{
+	if (IsDead())
+	{
+		return;
+	}
+
+	bIsAiming = true;
+
+	// tighten the weapon's spread
+	if (CurrentWeapon)
+	{
+		CurrentWeapon->SetAiming(true);
+	}
+}
+
+void AShooterCharacter::DoStopAim()
+{
+	bIsAiming = false;
+
+	if (CurrentWeapon)
+	{
+		CurrentWeapon->SetAiming(false);
+	}
+}
+
+void AShooterCharacter::DoStartSprint()
+{
+	if (!IsDead())
+	{
+		bWantsToSprint = true;
+	}
+}
+
+void AShooterCharacter::DoStopSprint()
+{
+	bWantsToSprint = false;
+}
+
+void AShooterCharacter::DoStartCrouch()
+{
+	if (!IsDead())
+	{
+		Crouch();
+	}
+}
+
+void AShooterCharacter::DoStopCrouch()
+{
+	UnCrouch();
+}
+
 void AShooterCharacter::AttachWeaponMeshes(AShooterWeapon* Weapon)
 {
 	const FAttachmentTransformRules AttachmentRule(EAttachmentRule::SnapToTarget, false);
@@ -328,6 +464,9 @@ void AShooterCharacter::OnWeaponActivated(AShooterWeapon* Weapon)
 	// set the character mesh AnimInstances
 	GetFirstPersonMesh()->SetAnimInstanceClass(Weapon->GetFirstPersonAnimInstanceClass());
 	GetMesh()->SetAnimInstanceClass(Weapon->GetThirdPersonAnimInstanceClass());
+
+	// a newly equipped weapon inherits the current aiming state
+	Weapon->SetAiming(bIsAiming);
 }
 
 void AShooterCharacter::OnWeaponDeactivated(AShooterWeapon* Weapon)
@@ -338,6 +477,18 @@ void AShooterCharacter::OnWeaponDeactivated(AShooterWeapon* Weapon)
 void AShooterCharacter::OnSemiWeaponRefire()
 {
 	// unused
+}
+
+void AShooterCharacter::OnHitConfirmed(bool bHeadshot)
+{
+	// remember the hit so the HUD can flash a hit marker
+	LastHitConfirmTime = GetWorld()->GetTimeSeconds();
+	bLastHitWasHeadshot = bHeadshot;
+}
+
+AShooterWeapon* AShooterCharacter::GetCurrentWeapon() const
+{
+	return CurrentWeapon;
 }
 
 AShooterWeapon* AShooterCharacter::FindWeaponOfType(TSubclassOf<AShooterWeapon> WeaponClass) const
@@ -373,6 +524,10 @@ void AShooterCharacter::Die()
 	// grant the death tag to the character
 	Tags.Add(DeathTag);
 		
+	// drop any aiming and sprinting state
+	bIsAiming = false;
+	bWantsToSprint = false;
+
 	// stop character movement
 	GetCharacterMovement()->StopMovementImmediately();
 	GetCharacterMovement()->DisableMovement();

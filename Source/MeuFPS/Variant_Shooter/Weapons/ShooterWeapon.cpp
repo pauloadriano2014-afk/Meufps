@@ -245,7 +245,8 @@ void AShooterWeapon::FireHitscan(const FVector& TargetLocation)
 	// shoot from the muzzle towards the aim target, with random spread inside a cone
 	const FVector MuzzleLoc = FirstPersonMesh->GetSocketLocation(MuzzleSocketName);
 	const FVector AimDir = (TargetLocation - MuzzleLoc).GetSafeNormal();
-	const FVector ShotDir = FMath::VRandCone(AimDir, FMath::DegreesToRadians(HitscanSpread));
+	const float Spread = bIsAiming ? HitscanSpread * AimSpreadMultiplier : HitscanSpread;
+	const FVector ShotDir = FMath::VRandCone(AimDir, FMath::DegreesToRadians(Spread));
 	const FVector TraceEnd = MuzzleLoc + (ShotDir * HitscanRange);
 
 	// never hit the shooter or the weapon itself
@@ -293,6 +294,12 @@ void AShooterWeapon::FireHitscan(const FVector& TargetLocation)
 		}
 
 		UGameplayStatics::ApplyPointDamage(HitActor, Damage, ShotDir, Hit, PawnOwner->GetController(), this, UDamageType::StaticClass());
+
+		// tell the owner it hit a character, so the HUD can show a hit marker
+		if (HitActor->IsA<ACharacter>())
+		{
+			WeaponOwner->OnHitConfirmed(bHeadshot);
+		}
 	}
 
 	// push physics objects
@@ -410,14 +417,6 @@ bool AShooterWeapon::ShouldAutoReload() const
 void AShooterWeapon::RefreshHUD()
 {
 	WeaponOwner->UpdateWeaponHUD(CurrentBullets, MagazineSize);
-
-#if !UE_BUILD_SHIPPING
-	// temporary on-screen readout of the reserve ammo until the HUD widget shows it
-	if (GEngine && PawnOwner && PawnOwner->IsPlayerControlled())
-	{
-		GEngine->AddOnScreenDebugMessage(1, 5.0f, FColor::White, FString::Printf(TEXT("Ammo: %d / %d%s"), CurrentBullets, ReserveAmmo, bIsReloading ? TEXT("  (reloading)") : TEXT("")));
-	}
-#endif
 }
 
 FTransform AShooterWeapon::CalculateProjectileSpawnTransform(const FVector& TargetLocation) const

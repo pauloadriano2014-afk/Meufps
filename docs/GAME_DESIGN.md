@@ -46,11 +46,11 @@
 |---|---|
 | Movimento, pulo | Pronto (template) |
 | Armas, troca, carregador | Pronto (template) |
-| Tiro instantâneo (hitscan), dano por distância, headshot | Feito, aguardando teste |
-| Recarga manual (R) e munição de reserva | Feito, aguardando teste |
-| Mira (ADS) com zoom e menos dispersão | Próximo |
-| Correr (Shift) e agachar (Ctrl) | Próximo |
-| Marcador de acerto e HUD com reserva de munição | Planejado |
+| Tiro instantâneo (hitscan), dano por distância, headshot | Feito e testado |
+| Recarga manual (R) e munição de reserva | Feito, recarga automática testada (R ainda por confirmar) |
+| Mira (ADS, botão direito) com zoom e menos dispersão | Feito, aguardando teste |
+| Correr (Shift) e agachar (Ctrl) | Feito, aguardando teste |
+| Marcador de acerto e HUD com reserva de munição | Feito, aguardando teste |
 | Efeitos de impacto, sons de tiro e recarga | Planejado (precisa de assets) |
 
 ### 4.2 Armas [PROPOSTA]

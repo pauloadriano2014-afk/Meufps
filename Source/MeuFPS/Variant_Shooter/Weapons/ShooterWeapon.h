@@ -103,6 +103,13 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Hitscan", meta = (ClampMin = 0, ClampMax = 45, Units = "Degrees"))
 	float HitscanSpread = 0.5f;
 
+	/** Multiplier applied to the hitscan spread while the owner aims down sights */
+	UPROPERTY(EditAnywhere, Category="Hitscan", meta = (ClampMin = 0, ClampMax = 1))
+	float AimSpreadMultiplier = 0.25f;
+
+	/** If true, the owner is aiming down sights */
+	bool bIsAiming = false;
+
 	/** Impulse applied to physics objects hit by a hitscan shot */
 	UPROPERTY(EditAnywhere, Category="Hitscan", meta = (ClampMin = 0))
 	float HitscanPhysicsForce = 20000.0f;
@@ -209,6 +216,9 @@ public:
 
 	/** Adds bullets to the reserve, up to the max reserve */
 	void AddReserveAmmo(int32 Amount);
+
+	/** Tells the weapon whether its owner is aiming down sights, which tightens the spread */
+	void SetAiming(bool bAiming) { bIsAiming = bAiming; }
 
 protected:
 

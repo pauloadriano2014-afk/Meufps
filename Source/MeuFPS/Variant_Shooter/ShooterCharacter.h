@@ -45,9 +45,65 @@ protected:
 	UPROPERTY(EditAnywhere, Category ="Input")
 	UInputAction* ReloadAction;
 
+	/** Aim down sights input action. If left empty, an action bound to the right mouse button is created at runtime */
+	UPROPERTY(EditAnywhere, Category ="Input")
+	UInputAction* AimAction;
+
+	/** Sprint input action. If left empty, an action bound to Left Shift is created at runtime */
+	UPROPERTY(EditAnywhere, Category ="Input")
+	UInputAction* SprintAction;
+
+	/** Crouch input action. If left empty, an action bound to Left Ctrl is created at runtime */
+	UPROPERTY(EditAnywhere, Category ="Input")
+	UInputAction* CrouchAction;
+
 	/** Mapping context holding the keys that are bound from code instead of from assets */
 	UPROPERTY(Transient)
 	UInputMappingContext* RuntimeMappingContext;
+
+	/** Sprint speed as a multiple of the normal walk speed */
+	UPROPERTY(EditAnywhere, Category="Movement", meta = (ClampMin = 1, ClampMax = 3))
+	float SprintSpeedMultiplier = 1.5f;
+
+	/** Walk speed multiplier while aiming down sights */
+	UPROPERTY(EditAnywhere, Category="Movement", meta = (ClampMin = 0.1, ClampMax = 1))
+	float AimSpeedFactor = 0.6f;
+
+	/** How far the eyes drop while crouched */
+	UPROPERTY(EditAnywhere, Category="Movement", meta = (ClampMin = 0, ClampMax = 150, Units = "cm"))
+	float CrouchEyeDrop = 70.0f;
+
+	/** Camera field of view while aiming down sights. Lower means more zoom */
+	UPROPERTY(EditAnywhere, Category="Aim", meta = (ClampMin = 20, ClampMax = 120, Units = "Degrees"))
+	float AimFOV = 60.0f;
+
+	/** How fast the camera zooms in and out when aiming */
+	UPROPERTY(EditAnywhere, Category="Aim", meta = (ClampMin = 1))
+	float AimInterpSpeed = 14.0f;
+
+	/** If true, the character is aiming down sights */
+	bool bIsAiming = false;
+
+	/** If true, the sprint key is held */
+	bool bWantsToSprint = false;
+
+	/** Normal walk speed, read from the movement component at BeginPlay */
+	float WalkSpeed = 0.0f;
+
+	/** Normal camera field of view, read at BeginPlay */
+	float DefaultFOV = 90.0f;
+
+	/** Normal relative location of the first person mesh, read at BeginPlay */
+	FVector DefaultFPMeshLocation = FVector::ZeroVector;
+
+	/** Current vertical drop of the eyes, interpolated towards CrouchEyeDrop while crouched */
+	float CurrentEyeDrop = 0.0f;
+
+	/** Game time of the last shot that hit a character, used by the HUD hit marker */
+	float LastHitConfirmTime = -100.0f;
+
+	/** True if the last confirmed hit was a headshot */
+	bool bLastHitWasHeadshot = false;
 
 	/** Name of the first person mesh weapon socket */
 	UPROPERTY(EditAnywhere, Category ="Weapons")
@@ -112,6 +168,9 @@ protected:
 	/** Gameplay cleanup */
 	virtual void EndPlay(EEndPlayReason::Type EndPlayReason) override;
 
+	/** Per-frame update of the aim zoom, movement speed and crouch eye height */
+	virtual void Tick(float DeltaSeconds) override;
+
 	/** Set up input action bindings */
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
 
@@ -150,6 +209,30 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoReload();
 
+	/** Handles start aiming down sights input */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	void DoStartAim();
+
+	/** Handles stop aiming down sights input */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	void DoStopAim();
+
+	/** Handles start sprinting input */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	void DoStartSprint();
+
+	/** Handles stop sprinting input */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	void DoStopSprint();
+
+	/** Handles start crouching input */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	void DoStartCrouch();
+
+	/** Handles stop crouching input */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	void DoStopCrouch();
+
 public:
 
 	//~Begin IShooterWeaponHolder interface
@@ -181,6 +264,9 @@ public:
 	/** Notifies the owner that the weapon cooldown has expired and it's ready to shoot again */
 	virtual void OnSemiWeaponRefire() override;
 
+	/** Notifies the owner that the weapon's shot hit a character */
+	virtual void OnHitConfirmed(bool bHeadshot) override;
+
 	//~End IShooterWeaponHolder interface
 
 protected:
@@ -205,6 +291,15 @@ public:
 
 	/** Returns true if the character is dead */
 	bool IsDead() const;
+
+	/** Returns the weapon currently equipped, or null */
+	AShooterWeapon* GetCurrentWeapon() const;
+
+	/** Returns the game time of the last shot that hit a character */
+	float GetLastHitConfirmTime() const { return LastHitConfirmTime; }
+
+	/** Returns true if the last confirmed hit was a headshot */
+	bool WasLastHitHeadshot() const { return bLastHitWasHeadshot; }
 
 	/** Sets the team ID for this character */
 	void SetTeam(uint8 Team);
