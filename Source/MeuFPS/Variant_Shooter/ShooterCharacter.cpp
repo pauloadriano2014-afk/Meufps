@@ -32,7 +32,7 @@ AShooterCharacter::AShooterCharacter()
 
 	// allow crouching with a shorter capsule and a slower crouch walk
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
-	GetCharacterMovement()->CrouchedHalfHeight = 60.0f;
+	GetCharacterMovement()->SetCrouchedHalfHeight(60.0f);
 	GetCharacterMovement()->MaxWalkSpeedCrouched = 250.0f;
 }
 

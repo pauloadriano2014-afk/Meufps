@@ -40,9 +40,9 @@ void AMissionManager::BeginPlay()
 	}
 
 	// sort by order. Objectives with the same order keep their relative position
-	Objectives.StableSort([](const TObjectPtr<AMissionObjective>& A, const TObjectPtr<AMissionObjective>& B)
+	Objectives.StableSort([](const AMissionObjective& A, const AMissionObjective& B)
 	{
-		return A->GetOrder() < B->GetOrder();
+		return A.GetOrder() < B.GetOrder();
 	});
 
 	if (bAutoStart)
