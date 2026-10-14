@@ -77,6 +77,9 @@ void AShooterGameMode::IncrementTeamScore(uint8 TeamByte)
 	{
 		ShooterUI->BP_UpdateScore(TeamByte, Score);
 	}
+
+	// announce the death to anything that is counting, such as mission objectives
+	OnTeamMemberDied.Broadcast(TeamByte);
 }
 
 bool AShooterGameMode::ShouldSpawnEnemyNPCs() const

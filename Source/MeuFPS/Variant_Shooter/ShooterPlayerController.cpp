@@ -10,6 +10,7 @@
 #include "ShooterCharacter.h"
 #include "ShooterBulletCounterUI.h"
 #include "ShooterHUD.h"
+#include "Variant_Shooter/Mission/MissionManager.h"
 #include "MeuFPS.h"
 #include "Widgets/Input/SVirtualJoystick.h"
 
@@ -112,6 +113,24 @@ void AShooterPlayerController::OnPawnDestroyed(AActor* DestroyedActor)
 	if (IsValid(BulletCounterUI))
 	{
 		BulletCounterUI->BP_UpdateBulletCounter(0, 0);
+	}
+
+	// if the level has a mission and the player reached a checkpoint, respawn there instead of at a player start
+	if (const AMissionManager* Mission = AMissionManager::Get(this))
+	{
+		FTransform CheckpointTransform;
+
+		if (Mission->GetCheckpoint(CheckpointTransform))
+		{
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+			if (AShooterCharacter* RespawnedCharacter = GetWorld()->SpawnActor<AShooterCharacter>(CharacterClass, CheckpointTransform, SpawnParams))
+			{
+				Possess(RespawnedCharacter);
+				return;
+			}
+		}
 	}
 
 	if (TeamByte < TeamTags.Num())

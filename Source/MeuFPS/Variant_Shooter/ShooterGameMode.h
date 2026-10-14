@@ -8,6 +8,9 @@
 
 class UShooterUI;
 
+/** Broadcast with the team of every character that dies. Mission objectives use it to count kills */
+DECLARE_MULTICAST_DELEGATE_OneParam(FTeamMemberDiedDelegate, uint8 /*TeamByte*/);
+
 /**
  *  Simple GameMode for a first person shooter game
  *  Manages game UI
@@ -49,7 +52,12 @@ protected:
 
 public:
 
-	/** Increases the score for the given team */
+	/** Broadcast whenever a character dies, with the team of the character that died */
+	FTeamMemberDiedDelegate OnTeamMemberDied;
+
+public:
+
+	/** Increases the score for the given team. Characters call it when they die, so it also announces the death */
 	void IncrementTeamScore(uint8 TeamByte);
 
 	/** Returns true if enemy NPCs should be used */

@@ -52,6 +52,7 @@
 | Correr (Shift) e agachar (Ctrl) | Feito, aguardando teste |
 | Marcador de acerto e HUD com reserva de munição | Feito, aguardando teste |
 | Efeitos de impacto, sons de tiro e recarga | Planejado (precisa de assets) |
+| Sistema de missões (objetivos, checkpoints, HUD de objetivo e mensagens) | Feito, aguardando teste. Ver `docs/MISSION_SETUP.md` |
 
 ### 4.2 Armas [PROPOSTA]
 - **De fogo:** pistola, fuzil de assalto, escopeta, rifle de precisão. O lança-granadas do template pode virar item raro.
