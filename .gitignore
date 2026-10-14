@@ -1,0 +1,62 @@
+# Visual Studio user-specific files
+.vs/
+
+# Compiled object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled headers
+*.gch
+*.pch
+
+# Compiled dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+*.ipa
+
+# Project files that the engine can regenerate
+# (right-click MeuFPS.uproject > Generate Visual Studio project files)
+*.xcodeproj
+*.xcworkspace
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.opendb
+*.vsconfig
+
+# Binaries and build output
+Binaries/
+Plugins/*/Binaries/
+Build/*
+!Build/*/
+Build/*/**
+!Build/*/PakBlacklist*.txt
+!Build/**/*.ico
+
+# Built lighting data
+*_BuiltData.uasset
+
+# Editor-generated state
+Saved/
+Intermediate/
+Plugins/*/Intermediate/
+DerivedDataCache/
+
+# Packaged builds
+Packaged/
