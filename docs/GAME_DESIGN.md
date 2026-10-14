@@ -10,7 +10,12 @@
 - **Estrutura [DECIDIDO]:** campanha em missões, cada uma em uma fase separada.
 - **Ambientação [DECIDIDO]:** pós-apocalíptico.
 - **História [DECIDIDO]:** simples, contada por missão (briefing curto + objetivo + final), com uma trama leve ligando tudo.
-- **Título provisório [PROPOSTA]:** MeuFPS (trocar depois).
+- **Título provisório [DECIDIDO]:** No Choices (pode mudar depois).
+- **Protagonista [DECIDIDO]:** Paul, homem.
+- **Inimigos [DECIDIDO]:** humanos e criaturas.
+- **Primeira versão [DECIDIDO]:** 5 missões.
+- **Referências [DECIDIDO]:** The Last of Us, State of Decay, Dead Rising, Dead Island 2.
+  - Do que tomamos como direção: tensão e escassez (The Last of Us), sensação de comunidade e risco de perder recursos (State of Decay), improviso com o que está à mão e horda de inimigos (Dead Rising, Dead Island 2).
 
 ## 2. Pilares de design [PROPOSTA]
 
@@ -22,8 +27,10 @@
 ## 3. Premissa e história [PROPOSTA — para discutir]
 
 - **Mundo:** anos depois de um colapso. Cidades abandonadas, estradas bloqueadas, sobreviventes em pequenos assentamentos.
-- **Protagonista:** um batedor de um assentamento que sai em missões para buscar suprimentos e informações.
-- **Antagonistas:** um grupo de saqueadores organizados que controla as rotas e os recursos da região.
+- **Protagonista:** Paul, um batedor de um assentamento que sai em missões para buscar suprimentos e informações.
+- **Ameaças:** dois tipos de inimigo.
+  - **Humanos:** um grupo de saqueadores organizados que controla as rotas e os recursos da região.
+  - **Criaturas:** infectados que vagam pelas cidades. A causa do colapso fica em aberto para ser revelada aos poucos, ou nunca. (Decidir depois.)
 - **Arco geral (5 missões):**
   1. **Estrada:** o batedor deixa o assentamento e abre caminho até um posto de combustível tomado por saqueadores.
   2. **Hospital:** recuperar remédios em um hospital abandonado.
@@ -47,13 +54,20 @@
 | Efeitos de impacto, sons de tiro e recarga | Planejado (precisa de assets) |
 
 ### 4.2 Armas [PROPOSTA]
-Pistola, fuzil de assalto, escopeta, rifle de precisão. O lança-granadas do template pode virar item raro.
+- **De fogo:** pistola, fuzil de assalto, escopeta, rifle de precisão. O lança-granadas do template pode virar item raro.
+- **Corpo a corpo:** com as referências escolhidas (Dead Rising, Dead Island 2), faz sentido ter armas brancas improvisadas (taco, facão, barra de ferro) como alternativa sem munição. Elas combinam com a escassez e com enfrentar criaturas sem chamar atenção. **Isso é uma decisão nova: confirmar.** O template não traz sistema de combate corpo a corpo, então seria código novo (uma etapa própria).
 
 ### 4.3 Inimigos [PROPOSTA]
+**Humanos (saqueadores):**
 - **Saqueador:** inimigo padrão, ataca de frente.
 - **Atirador:** posição elevada, tiro de longa distância, dano alto.
-- **Brutamontes:** mais vida, avança e usa escopeta.
-A IA usa a base de StateTree que o template já traz.
+
+**Criaturas (infectados):**
+- **Corredor:** rápido e frágil, ataca em grupo.
+- **Andarilho:** lento, resistente, reage a barulho.
+- **Brutamontes:** muita vida, avança em linha reta e causa dano alto de perto.
+
+A IA humana usa a base de StateTree que o template já traz. As criaturas precisam de comportamento próprio (perseguir pelo som e pela visão, atacar de perto) e de modelos e animações de infectado, que vêm de assets da Fab. O barulho dos tiros já alerta inimigos no template (sistema de percepção por ruído), o que combina com a ideia de que atirar atrai a horda.
 
 ### 4.4 Sistema de missões [PROPOSTA]
 Estrutura em C++ para que cada fase seja só configuração no editor:
@@ -84,8 +98,10 @@ O Claude não gera modelos 3D, animações nem sons. Fontes previstas:
 
 ## 7. Perguntas em aberto
 
-1. Nome do jogo.
-2. O protagonista tem nome, voz e rosto, ou é anônimo?
-3. Os inimigos são só humanos (saqueadores) ou também criaturas?
-4. Quantas missões na primeira versão? (a proposta é 5, com foco em entregar a 1 bem feita primeiro)
-5. Jogos de referência para o clima e a dificuldade.
+1. Armas corpo a corpo entram na primeira versão? (ver 4.2)
+2. De onde vem a infecção? Pode ficar sem explicação.
+3. Paul tem voz (dublagem) ou fala só por texto de briefing?
+4. Haverá um assentamento jogável entre missões (estilo State of Decay) ou só uma tela de menu?
+5. Que nível de gore e violência?
+
+Respondidas: nome (No Choices), protagonista (Paul), inimigos (humanos e criaturas), número de missões (5), referências (ver seção 1).
