@@ -26,11 +26,11 @@ protected:
 	float HitMarkerDuration = 0.2f;
 
 	/** Distance from the screen center where the hit marker lines start */
-	UPROPERTY(EditAnywhere, Category="Hit Marker", meta = (ClampMin = 0, Units = "px"))
+	UPROPERTY(EditAnywhere, Category="Hit Marker", meta = (ClampMin = 0))
 	float HitMarkerInnerRadius = 8.0f;
 
 	/** Distance from the screen center where the hit marker lines end */
-	UPROPERTY(EditAnywhere, Category="Hit Marker", meta = (ClampMin = 0, Units = "px"))
+	UPROPERTY(EditAnywhere, Category="Hit Marker", meta = (ClampMin = 0))
 	float HitMarkerOuterRadius = 18.0f;
 
 	/** Scale of the ammo readout text */
