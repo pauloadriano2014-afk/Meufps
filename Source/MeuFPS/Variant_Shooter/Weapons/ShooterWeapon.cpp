@@ -154,10 +154,14 @@ void AShooterWeapon::Fire()
 		return;
 	}
 
-	// an empty magazine triggers a reload instead of a shot
+	// an empty magazine can't shoot. Reload if that's allowed to happen by itself
 	if (CurrentBullets <= 0)
 	{
-		StartReload();
+		if (ShouldAutoReload())
+		{
+			StartReload();
+		}
+
 		return;
 	}
 
@@ -230,7 +234,7 @@ void AShooterWeapon::FireProjectile(const FVector& TargetLocation)
 	RefreshHUD();
 
 	// if the magazine is depleted, start reloading right away
-	if (CurrentBullets <= 0)
+	if (CurrentBullets <= 0 && ShouldAutoReload())
 	{
 		StartReload();
 	}
@@ -338,6 +342,9 @@ void AShooterWeapon::StartReload()
 
 	bIsReloading = true;
 
+	// show the reloading state in the HUD readout
+	RefreshHUD();
+
 	// cancel any shot that was scheduled
 	GetWorld()->GetTimerManager().ClearTimer(RefireTimer);
 
@@ -393,6 +400,11 @@ bool AShooterWeapon::HasInfiniteReserve() const
 {
 	// only player-controlled owners have limited ammo
 	return PawnOwner && !PawnOwner->IsPlayerControlled();
+}
+
+bool AShooterWeapon::ShouldAutoReload() const
+{
+	return bAutoReload || HasInfiniteReserve();
 }
 
 void AShooterWeapon::RefreshHUD()

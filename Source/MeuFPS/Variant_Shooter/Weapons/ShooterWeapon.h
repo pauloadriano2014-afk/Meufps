@@ -61,6 +61,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Ammo", meta = (ClampMin = 0, ClampMax = 10, Units = "s"))
 	float ReloadTime = 2.0f;
 
+	/** If true, the player's weapon starts reloading by itself when the magazine runs empty. AI weapons always do */
+	UPROPERTY(EditAnywhere, Category="Ammo")
+	bool bAutoReload = true;
+
 	/** If true, the weapon is currently reloading */
 	bool bIsReloading = false;
 
@@ -231,6 +235,9 @@ protected:
 
 	/** Returns true if reloading never consumes reserve ammo, which is the case for AI-controlled owners */
 	bool HasInfiniteReserve() const;
+
+	/** Returns true if an empty magazine should start a reload without the player asking for it */
+	bool ShouldAutoReload() const;
 
 	/** Pushes the current ammo counts to the owner's HUD */
 	void RefreshHUD();
