@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "InputCoreTypes.h"
 #include "MeuFPSCharacter.h"
 #include "ShooterWeaponHolder.h"
 #include "ShooterCharacter.generated.h"
@@ -10,6 +11,7 @@
 class AShooterWeapon;
 class UInputAction;
 class UInputComponent;
+class UInputMappingContext;
 class UPawnNoiseEmitterComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FBulletCountUpdatedDelegate, int32, MagazineSize, int32, Bullets);
@@ -38,6 +40,14 @@ protected:
 	/** Switch weapon input action */
 	UPROPERTY(EditAnywhere, Category ="Input")
 	UInputAction* SwitchWeaponAction;
+
+	/** Reload input action. If left empty, an action bound to the R key is created at runtime */
+	UPROPERTY(EditAnywhere, Category ="Input")
+	UInputAction* ReloadAction;
+
+	/** Mapping context holding the keys that are bound from code instead of from assets */
+	UPROPERTY(Transient)
+	UInputMappingContext* RuntimeMappingContext;
 
 	/** Name of the first person mesh weapon socket */
 	UPROPERTY(EditAnywhere, Category ="Weapons")
@@ -136,6 +146,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoSwitchWeapon();
 
+	/** Handles reload input */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	void DoReload();
+
 public:
 
 	//~Begin IShooterWeaponHolder interface
@@ -173,6 +187,9 @@ protected:
 
 	/** Returns true if the character already owns a weapon of the given class */
 	AShooterWeapon* FindWeaponOfType(TSubclassOf<AShooterWeapon> WeaponClass) const;
+
+	/** Creates an input action at runtime and binds it to a key, for inputs that have no asset yet */
+	UInputAction* CreateRuntimeKeyAction(const TCHAR* ActionName, const FKey& Key);
 
 	/** Called when this character's HP is depleted */
 	void Die();

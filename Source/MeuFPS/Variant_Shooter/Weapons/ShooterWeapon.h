@@ -48,7 +48,65 @@ protected:
 
 	/** Number of bullets in the current magazine */
 	int32 CurrentBullets = 0;
-	
+
+	/** Bullets carried outside the magazine. Only the player runs out, AI-held weapons reload for free */
+	UPROPERTY(EditAnywhere, Category="Ammo", meta = (ClampMin = 0))
+	int32 ReserveAmmo = 90;
+
+	/** Max bullets that can be carried outside the magazine */
+	UPROPERTY(EditAnywhere, Category="Ammo", meta = (ClampMin = 0))
+	int32 MaxReserveAmmo = 180;
+
+	/** Time it takes to reload the magazine */
+	UPROPERTY(EditAnywhere, Category="Ammo", meta = (ClampMin = 0, ClampMax = 10, Units = "s"))
+	float ReloadTime = 2.0f;
+
+	/** If true, the weapon is currently reloading */
+	bool bIsReloading = false;
+
+	/** Timer that completes the reload */
+	FTimerHandle ReloadTimer;
+
+	/** If true, bullets hit instantly along the aim line instead of spawning a projectile */
+	UPROPERTY(EditAnywhere, Category="Hitscan")
+	bool bHitscan = false;
+
+	/** Max distance a hitscan shot can reach */
+	UPROPERTY(EditAnywhere, Category="Hitscan", meta = (ClampMin = 0, Units = "cm"))
+	float HitscanRange = 20000.0f;
+
+	/** Damage of a hitscan shot at point blank range */
+	UPROPERTY(EditAnywhere, Category="Hitscan", meta = (ClampMin = 0))
+	float HitscanDamage = 25.0f;
+
+	/** Damage multiplier when the shot hits the head */
+	UPROPERTY(EditAnywhere, Category="Hitscan", meta = (ClampMin = 1))
+	float HeadshotMultiplier = 2.0f;
+
+	/** Distance at which damage starts to fall off */
+	UPROPERTY(EditAnywhere, Category="Hitscan", meta = (ClampMin = 0, Units = "cm"))
+	float DamageFalloffStart = 2000.0f;
+
+	/** Distance at which damage reaches its minimum */
+	UPROPERTY(EditAnywhere, Category="Hitscan", meta = (ClampMin = 0, Units = "cm"))
+	float DamageFalloffEnd = 8000.0f;
+
+	/** Fraction of the damage that remains at or past the falloff end distance */
+	UPROPERTY(EditAnywhere, Category="Hitscan", meta = (ClampMin = 0, ClampMax = 1))
+	float MinDamageFraction = 0.4f;
+
+	/** Cone half-angle of random spread applied to each hitscan shot */
+	UPROPERTY(EditAnywhere, Category="Hitscan", meta = (ClampMin = 0, ClampMax = 45, Units = "Degrees"))
+	float HitscanSpread = 0.5f;
+
+	/** Impulse applied to physics objects hit by a hitscan shot */
+	UPROPERTY(EditAnywhere, Category="Hitscan", meta = (ClampMin = 0))
+	float HitscanPhysicsForce = 20000.0f;
+
+	/** If true, draws a short tracer line and an impact point for each hitscan shot. Temporary until real effects exist */
+	UPROPERTY(EditAnywhere, Category="Hitscan")
+	bool bDebugDrawShots = true;
+
 	/** Animation montage to play when firing this weapon */
 	UPROPERTY(EditAnywhere, Category="Animation")
 	UAnimMontage* FiringMontage;
@@ -142,6 +200,12 @@ public:
 	/** Stop firing this weapon */
 	void StopFiring();
 
+	/** Starts reloading the magazine from the reserve ammo */
+	void StartReload();
+
+	/** Adds bullets to the reserve, up to the max reserve */
+	void AddReserveAmmo(int32 Amount);
+
 protected:
 
 	/** Fire the weapon */
@@ -150,8 +214,38 @@ protected:
 	/** Called when the refire rate time has passed while shooting semi auto weapons */
 	void FireCooldownExpired();
 
-	/** Fire a projectile towards the target location */
+	/** Fire a projectile towards the target location, or a hitscan shot if bHitscan is set */
 	virtual void FireProjectile(const FVector& TargetLocation);
+
+	/** Fires an instant shot towards the target location and applies damage to whatever it hits */
+	void FireHitscan(const FVector& TargetLocation);
+
+	/** Returns true if the hit landed on the head of a character */
+	bool IsHeadshot(const FHitResult& Hit) const;
+
+	/** Called when the reload timer expires */
+	void FinishReload();
+
+	/** Aborts a reload in progress */
+	void CancelReload();
+
+	/** Returns true if reloading never consumes reserve ammo, which is the case for AI-controlled owners */
+	bool HasInfiniteReserve() const;
+
+	/** Pushes the current ammo counts to the owner's HUD */
+	void RefreshHUD();
+
+	/** Called when a hitscan shot hits something. Implement in Blueprint for impact effects */
+	UFUNCTION(BlueprintImplementableEvent, Category="Weapon", meta = (DisplayName = "On Hitscan Impact"))
+	void BP_OnHitscanImpact(const FHitResult& Hit, bool bHeadshot);
+
+	/** Called when a reload starts. Implement in Blueprint for sounds and animations */
+	UFUNCTION(BlueprintImplementableEvent, Category="Weapon", meta = (DisplayName = "On Reload Started"))
+	void BP_OnReloadStarted();
+
+	/** Called when a reload finishes */
+	UFUNCTION(BlueprintImplementableEvent, Category="Weapon", meta = (DisplayName = "On Reload Finished"))
+	void BP_OnReloadFinished();
 
 	/** Calculates the spawn transform for projectiles shot by this weapon */
 	FTransform CalculateProjectileSpawnTransform(const FVector& TargetLocation) const;
@@ -177,4 +271,10 @@ public:
 
 	/** Returns the current bullet count */
 	int32 GetBulletCount() const { return CurrentBullets; }
+
+	/** Returns the bullets carried outside the magazine */
+	int32 GetReserveAmmo() const { return ReserveAmmo; }
+
+	/** Returns true while a reload is in progress */
+	bool IsReloading() const { return bIsReloading; }
 };

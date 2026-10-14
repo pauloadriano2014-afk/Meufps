@@ -4,6 +4,11 @@
 #include "ShooterCharacter.h"
 #include "ShooterWeapon.h"
 #include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "InputAction.h"
+#include "InputMappingContext.h"
+#include "Engine/LocalPlayer.h"
+#include "GameFramework/PlayerController.h"
 #include "Components/InputComponent.h"
 #include "Components/PawnNoiseEmitterComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -40,6 +45,18 @@ void AShooterCharacter::EndPlay(EEndPlayReason::Type EndPlayReason)
 
 	// clear the respawn timer
 	GetWorld()->GetTimerManager().ClearTimer(RespawnTimer);
+
+	// unregister the keys that were bound from code so a respawned character starts clean
+	if (RuntimeMappingContext)
+	{
+		if (const APlayerController* PC = Cast<APlayerController>(GetController()))
+		{
+			if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
+			{
+				Subsystem->RemoveMappingContext(RuntimeMappingContext);
+			}
+		}
+	}
 }
 
 void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -56,8 +73,50 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 
 		// Switch weapon
 		EnhancedInputComponent->BindAction(SwitchWeaponAction, ETriggerEvent::Triggered, this, &AShooterCharacter::DoSwitchWeapon);
+
+		// Reload. With no asset assigned, create the action and map it to R
+		if (!ReloadAction)
+		{
+			ReloadAction = CreateRuntimeKeyAction(TEXT("RuntimeReloadAction"), EKeys::R);
+		}
+
+		if (ReloadAction)
+		{
+			EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Started, this, &AShooterCharacter::DoReload);
+		}
 	}
 
+}
+
+UInputAction* AShooterCharacter::CreateRuntimeKeyAction(const TCHAR* ActionName, const FKey& Key)
+{
+	// the mapping context has to be added to the local player's input subsystem
+	const APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC)
+	{
+		return nullptr;
+	}
+
+	UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer());
+	if (!Subsystem)
+	{
+		return nullptr;
+	}
+
+	if (!RuntimeMappingContext)
+	{
+		RuntimeMappingContext = NewObject<UInputMappingContext>(this, TEXT("RuntimeMappingContext"));
+	}
+
+	// create a plain button action and map the key to it
+	UInputAction* Action = NewObject<UInputAction>(this, ActionName);
+	RuntimeMappingContext->MapKey(Action, Key);
+
+	// re-adding the context refreshes it with the new mapping
+	Subsystem->RemoveMappingContext(RuntimeMappingContext);
+	Subsystem->AddMappingContext(RuntimeMappingContext, 1);
+
+	return Action;
 }
 
 float AShooterCharacter::TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
@@ -167,6 +226,15 @@ void AShooterCharacter::DoSwitchWeapon()
 	}
 }
 
+void AShooterCharacter::DoReload()
+{
+	// reload the current weapon
+	if (CurrentWeapon && !IsDead())
+	{
+		CurrentWeapon->StartReload();
+	}
+}
+
 void AShooterCharacter::AttachWeaponMeshes(AShooterWeapon* Weapon)
 {
 	const FAttachmentTransformRules AttachmentRule(EAttachmentRule::SnapToTarget, false);
@@ -244,6 +312,11 @@ void AShooterCharacter::AddWeaponClass(const TSubclassOf<AShooterWeapon>& Weapon
 			CurrentWeapon = AddedWeapon;
 			CurrentWeapon->ActivateWeapon(PlayerTag);
 		}
+
+	} else {
+
+		// we already own this weapon, so picking it up again refills its ammo
+		OwnedWeapon->AddReserveAmmo(OwnedWeapon->GetMagazineSize() * 2);
 	}
 }
 

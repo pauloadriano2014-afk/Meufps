@@ -10,7 +10,14 @@
 #include "TimerManager.h"
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/DamageType.h"
+#include "Kismet/GameplayStatics.h"
+#include "DrawDebugHelpers.h"
+#include "Engine/Engine.h"
 
 AShooterWeapon::AShooterWeapon()
 {
@@ -58,8 +65,9 @@ void AShooterWeapon::EndPlay(EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
 
-	// clear the refire timer
+	// clear the refire and reload timers
 	GetWorld()->GetTimerManager().ClearTimer(RefireTimer);
+	GetWorld()->GetTimerManager().ClearTimer(ReloadTimer);
 }
 
 void AShooterWeapon::OnOwnerDestroyed(AActor* DestroyedActor)
@@ -78,12 +86,18 @@ void AShooterWeapon::ActivateWeapon(const FName& OwnerTag)
 
 	// notify the owner
 	WeaponOwner->OnWeaponActivated(this);
+
+	// refresh the ammo readout for the newly active weapon
+	RefreshHUD();
 }
 
 void AShooterWeapon::DeactivateWeapon()
 {
 	// ensure we're no longer firing this weapon while deactivated
 	StopFiring();
+
+	// switching away from the weapon cancels a reload in progress
+	CancelReload();
 
 	// hide the weapon
 	SetActorHiddenInGame(true);
@@ -133,7 +147,20 @@ void AShooterWeapon::Fire()
 	{
 		return;
 	}
-	
+
+	// can't shoot while the magazine is being reloaded
+	if (bIsReloading)
+	{
+		return;
+	}
+
+	// an empty magazine triggers a reload instead of a shot
+	if (CurrentBullets <= 0)
+	{
+		StartReload();
+		return;
+	}
+
 	// fire a projectile at the target
 	FireProjectile(WeaponOwner->GetWeaponTargetLocation());
 
@@ -164,22 +191,30 @@ void AShooterWeapon::FireCooldownExpired()
 
 void AShooterWeapon::FireProjectile(const FVector& TargetLocation)
 {
-	// get the projectile transform
-	FTransform ProjectileTransform = CalculateProjectileSpawnTransform(TargetLocation);
-	
-	// spawn the projectile
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	SpawnParams.TransformScaleMethod = ESpawnActorScaleMethod::OverrideRootScale;
-	SpawnParams.Owner = GetOwner();
-	SpawnParams.Instigator = PawnOwner;
-
-	AShooterProjectile* Projectile = GetWorld()->SpawnActor<AShooterProjectile>(ProjectileClass, ProjectileTransform, SpawnParams);
-
-	// set the noise tag on the projectile
-	if (Projectile)
+	if (bHitscan)
 	{
-		Projectile->SetNoiseTag(NoiseOwnerTag);
+		// instant shot, no projectile actor
+		FireHitscan(TargetLocation);
+
+	} else {
+
+		// get the projectile transform
+		FTransform ProjectileTransform = CalculateProjectileSpawnTransform(TargetLocation);
+
+		// spawn the projectile
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		SpawnParams.TransformScaleMethod = ESpawnActorScaleMethod::OverrideRootScale;
+		SpawnParams.Owner = GetOwner();
+		SpawnParams.Instigator = PawnOwner;
+
+		AShooterProjectile* Projectile = GetWorld()->SpawnActor<AShooterProjectile>(ProjectileClass, ProjectileTransform, SpawnParams);
+
+		// set the noise tag on the projectile
+		if (Projectile)
+		{
+			Projectile->SetNoiseTag(NoiseOwnerTag);
+		}
 	}
 
 	// play the firing montage
@@ -191,14 +226,186 @@ void AShooterWeapon::FireProjectile(const FVector& TargetLocation)
 	// consume bullets
 	--CurrentBullets;
 
-	// if the clip is depleted, reload it
+	// update the weapon HUD
+	RefreshHUD();
+
+	// if the magazine is depleted, start reloading right away
 	if (CurrentBullets <= 0)
 	{
-		CurrentBullets = MagazineSize;
+		StartReload();
+	}
+}
+
+void AShooterWeapon::FireHitscan(const FVector& TargetLocation)
+{
+	// shoot from the muzzle towards the aim target, with random spread inside a cone
+	const FVector MuzzleLoc = FirstPersonMesh->GetSocketLocation(MuzzleSocketName);
+	const FVector AimDir = (TargetLocation - MuzzleLoc).GetSafeNormal();
+	const FVector ShotDir = FMath::VRandCone(AimDir, FMath::DegreesToRadians(HitscanSpread));
+	const FVector TraceEnd = MuzzleLoc + (ShotDir * HitscanRange);
+
+	// never hit the shooter or the weapon itself
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(this);
+	QueryParams.AddIgnoredActor(GetOwner());
+
+	FHitResult Hit;
+	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, MuzzleLoc, TraceEnd, ECC_Visibility, QueryParams);
+	const FVector ImpactPoint = bHit ? Hit.ImpactPoint : TraceEnd;
+
+#if ENABLE_DRAW_DEBUG
+	if (bDebugDrawShots)
+	{
+		DrawDebugLine(GetWorld(), MuzzleLoc, ImpactPoint, FColor::Yellow, false, 0.1f, 0, 1.0f);
+
+		if (bHit)
+		{
+			DrawDebugPoint(GetWorld(), ImpactPoint, 10.0f, FColor::Red, false, 1.0f);
+		}
+	}
+#endif
+
+	if (!bHit)
+	{
+		return;
 	}
 
-	// update the weapon HUD
+	const bool bHeadshot = IsHeadshot(Hit);
+
+	if (AActor* HitActor = Hit.GetActor())
+	{
+		// damage falls off linearly between the start and end distances
+		float Damage = HitscanDamage;
+
+		if (DamageFalloffEnd > DamageFalloffStart)
+		{
+			const float FalloffAlpha = FMath::Clamp((Hit.Distance - DamageFalloffStart) / (DamageFalloffEnd - DamageFalloffStart), 0.0f, 1.0f);
+			Damage *= FMath::Lerp(1.0f, MinDamageFraction, FalloffAlpha);
+		}
+
+		if (bHeadshot)
+		{
+			Damage *= HeadshotMultiplier;
+		}
+
+		UGameplayStatics::ApplyPointDamage(HitActor, Damage, ShotDir, Hit, PawnOwner->GetController(), this, UDamageType::StaticClass());
+	}
+
+	// push physics objects
+	if (UPrimitiveComponent* HitComp = Hit.GetComponent())
+	{
+		if (HitComp->IsSimulatingPhysics())
+		{
+			HitComp->AddImpulseAtLocation(ShotDir * HitscanPhysicsForce, Hit.ImpactPoint);
+		}
+	}
+
+	// let Blueprints add impact effects
+	BP_OnHitscanImpact(Hit, bHeadshot);
+}
+
+bool AShooterWeapon::IsHeadshot(const FHitResult& Hit) const
+{
+	// hits on a character mesh report the bone that was struck
+	if (Hit.BoneName != NAME_None)
+	{
+		return Hit.BoneName.ToString().Contains(TEXT("head"));
+	}
+
+	// no bone info: fall back to the top fifth of the character's capsule
+	if (const ACharacter* HitCharacter = Cast<ACharacter>(Hit.GetActor()))
+	{
+		const float HeadHeight = HitCharacter->GetActorLocation().Z + (HitCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * 0.6f);
+		return Hit.ImpactPoint.Z >= HeadHeight;
+	}
+
+	return false;
+}
+
+void AShooterWeapon::StartReload()
+{
+	// nothing to do if we're already reloading or the magazine is full
+	if (bIsReloading || CurrentBullets >= MagazineSize)
+	{
+		return;
+	}
+
+	// we need bullets in reserve to reload
+	if (ReserveAmmo <= 0 && !HasInfiniteReserve())
+	{
+		return;
+	}
+
+	bIsReloading = true;
+
+	// cancel any shot that was scheduled
+	GetWorld()->GetTimerManager().ClearTimer(RefireTimer);
+
+	GetWorld()->GetTimerManager().SetTimer(ReloadTimer, this, &AShooterWeapon::FinishReload, ReloadTime, false);
+
+	// let Blueprints play sounds and animations
+	BP_OnReloadStarted();
+}
+
+void AShooterWeapon::FinishReload()
+{
+	bIsReloading = false;
+
+	const int32 BulletsNeeded = MagazineSize - CurrentBullets;
+
+	if (HasInfiniteReserve())
+	{
+		CurrentBullets = MagazineSize;
+
+	} else {
+
+		// move bullets from the reserve into the magazine
+		const int32 BulletsLoaded = FMath::Min(BulletsNeeded, ReserveAmmo);
+		CurrentBullets += BulletsLoaded;
+		ReserveAmmo -= BulletsLoaded;
+	}
+
+	RefreshHUD();
+
+	BP_OnReloadFinished();
+
+	// full auto weapons resume shooting if the trigger is still held
+	if (bIsFiring && bFullAuto)
+	{
+		StartFiring();
+	}
+}
+
+void AShooterWeapon::CancelReload()
+{
+	bIsReloading = false;
+	GetWorld()->GetTimerManager().ClearTimer(ReloadTimer);
+}
+
+void AShooterWeapon::AddReserveAmmo(int32 Amount)
+{
+	ReserveAmmo = FMath::Clamp(ReserveAmmo + Amount, 0, MaxReserveAmmo);
+
+	RefreshHUD();
+}
+
+bool AShooterWeapon::HasInfiniteReserve() const
+{
+	// only player-controlled owners have limited ammo
+	return PawnOwner && !PawnOwner->IsPlayerControlled();
+}
+
+void AShooterWeapon::RefreshHUD()
+{
 	WeaponOwner->UpdateWeaponHUD(CurrentBullets, MagazineSize);
+
+#if !UE_BUILD_SHIPPING
+	// temporary on-screen readout of the reserve ammo until the HUD widget shows it
+	if (GEngine && PawnOwner && PawnOwner->IsPlayerControlled())
+	{
+		GEngine->AddOnScreenDebugMessage(1, 5.0f, FColor::White, FString::Printf(TEXT("Ammo: %d / %d%s"), CurrentBullets, ReserveAmmo, bIsReloading ? TEXT("  (reloading)") : TEXT("")));
+	}
+#endif
 }
 
 FTransform AShooterWeapon::CalculateProjectileSpawnTransform(const FVector& TargetLocation) const
