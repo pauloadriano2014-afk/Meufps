@@ -67,6 +67,30 @@ void AShooterHUD::DrawMission()
 		}
 	}
 
+	// interaction prompt with a progress bar, shown while the player is next to an interact objective
+	FString InteractPrompt;
+	float InteractProgress = 0.0f;
+
+	if (Mission->GetInteractPrompt(InteractPrompt, InteractProgress))
+	{
+		const float PromptScale = 1.2f;
+		const float PromptY = Canvas->ClipY * 0.72f;
+
+		float PromptWidth = 0.0f;
+		float PromptHeight = 0.0f;
+		GetTextSize(InteractPrompt, PromptWidth, PromptHeight, Font, PromptScale);
+
+		DrawText(InteractPrompt, FLinearColor::White, (Canvas->ClipX * 0.5f) - (PromptWidth * 0.5f), PromptY, Font, PromptScale);
+
+		const float BarWidth = 320.0f;
+		const float BarHeight = 14.0f;
+		const float BarX = (Canvas->ClipX * 0.5f) - (BarWidth * 0.5f);
+		const float BarY = PromptY + PromptHeight + 10.0f;
+
+		DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.6f), BarX - 2.0f, BarY - 2.0f, BarWidth + 4.0f, BarHeight + 4.0f);
+		DrawRect(Accent, BarX, BarY, BarWidth * InteractProgress, BarHeight);
+	}
+
 	// message at the center of the screen: briefing, objective done, checkpoint, mission result
 	FString BannerText;
 

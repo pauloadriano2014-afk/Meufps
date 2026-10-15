@@ -1,11 +1,13 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "MissionManager.h"
 #include "MissionObjective.h"
+#include "InteractObjective.h"
 #include "Components/SceneComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
+#include "TimerManager.h"
 
 AMissionManager::AMissionManager()
 {
@@ -138,6 +140,46 @@ bool AMissionManager::GetBanner(float WorldTime, FString& OutText) const
 	return false;
 }
 
+bool AMissionManager::GetInteractPrompt(FString& OutPrompt, float& OutProgress) const
+{
+	if (State != EMissionState::Active)
+	{
+		return false;
+	}
+
+	for (const AMissionObjective* Objective : Objectives)
+	{
+		if (!Objective->IsActive())
+		{
+			continue;
+		}
+
+		if (const AInteractObjective* Interact = Cast<AInteractObjective>(Objective))
+		{
+			if (Interact->IsPlayerInRange())
+			{
+				OutPrompt = Interact->GetPrompt();
+				OutProgress = Interact->GetProgress01();
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+void AMissionManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+
+	GetWorldTimerManager().ClearTimer(NextLevelTimer);
+}
+
+void AMissionManager::OpenNextLevel()
+{
+	UGameplayStatics::OpenLevel(this, NextLevelName);
+}
+
 void AMissionManager::ActivateNextGroup()
 {
 	// find the lowest order among the objectives that are still open
@@ -219,4 +261,10 @@ void AMissionManager::CompleteMission()
 	ShowBanner(Text, 10.0f);
 
 	BP_OnMissionCompleted();
+
+	// move on to the next level after a pause, if there is one
+	if (!NextLevelName.IsNone())
+	{
+		GetWorldTimerManager().SetTimer(NextLevelTimer, this, &AMissionManager::OpenNextLevel, NextLevelDelay, false);
+	}
 }

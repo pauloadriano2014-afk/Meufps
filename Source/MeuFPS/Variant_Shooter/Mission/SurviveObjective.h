@@ -15,6 +15,8 @@ class MEUFPS_API ASurviveObjective : public AMissionObjective
 {
 	GENERATED_BODY()
 
+	friend class AMission01Builder;
+
 protected:
 
 	/** How long the player has to survive */

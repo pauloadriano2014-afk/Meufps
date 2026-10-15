@@ -122,6 +122,18 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 			EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &AShooterCharacter::DoStopSprint);
 		}
 
+		// Interact. E, hold
+		if (!InteractAction)
+		{
+			InteractAction = CreateRuntimeKeyAction(TEXT("RuntimeInteractAction"), EKeys::E);
+		}
+
+		if (InteractAction)
+		{
+			EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &AShooterCharacter::DoStartInteract);
+			EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Completed, this, &AShooterCharacter::DoStopInteract);
+		}
+
 		// Crouch. Left Ctrl, hold
 		if (!CrouchAction)
 		{
@@ -358,6 +370,19 @@ void AShooterCharacter::DoStopSprint()
 	bWantsToSprint = false;
 }
 
+void AShooterCharacter::DoStartInteract()
+{
+	if (!IsDead())
+	{
+		bInteractHeld = true;
+	}
+}
+
+void AShooterCharacter::DoStopInteract()
+{
+	bInteractHeld = false;
+}
+
 void AShooterCharacter::DoStartCrouch()
 {
 	if (!IsDead())
@@ -524,9 +549,10 @@ void AShooterCharacter::Die()
 	// grant the death tag to the character
 	Tags.Add(DeathTag);
 		
-	// drop any aiming and sprinting state
+	// drop any aiming, sprinting and interacting state
 	bIsAiming = false;
 	bWantsToSprint = false;
+	bInteractHeld = false;
 
 	// stop character movement
 	GetCharacterMovement()->StopMovementImmediately();

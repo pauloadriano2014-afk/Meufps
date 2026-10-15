@@ -22,6 +22,9 @@ class MEUFPS_API AMissionObjective : public AActor
 {
 	GENERATED_BODY()
 
+	/** Lets the mission builder fill in the objective's settings when it builds a level */
+	friend class AMission01Builder;
+
 	/** Root component so subclasses have something to attach to */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* Root;

@@ -57,6 +57,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category ="Input")
 	UInputAction* CrouchAction;
 
+	/** Interact input action. If left empty, an action bound to the E key is created at runtime */
+	UPROPERTY(EditAnywhere, Category ="Input")
+	UInputAction* InteractAction;
+
 	/** Mapping context holding the keys that are bound from code instead of from assets */
 	UPROPERTY(Transient)
 	UInputMappingContext* RuntimeMappingContext;
@@ -86,6 +90,9 @@ protected:
 
 	/** If true, the sprint key is held */
 	bool bWantsToSprint = false;
+
+	/** If true, the interact key is held */
+	bool bInteractHeld = false;
 
 	/** Normal walk speed, read from the movement component at BeginPlay */
 	float WalkSpeed = 0.0f;
@@ -225,6 +232,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoStopSprint();
 
+	/** Handles start interacting input */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	void DoStartInteract();
+
+	/** Handles stop interacting input */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	void DoStopInteract();
+
 	/** Handles start crouching input */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoStartCrouch();
@@ -294,6 +309,9 @@ public:
 
 	/** Returns the weapon currently equipped, or null */
 	AShooterWeapon* GetCurrentWeapon() const;
+
+	/** Returns true while the interact key is held */
+	bool IsInteractHeld() const { return bInteractHeld; }
 
 	/** Returns the game time of the last shot that hit a character */
 	float GetLastHitConfirmTime() const { return LastHitConfirmTime; }

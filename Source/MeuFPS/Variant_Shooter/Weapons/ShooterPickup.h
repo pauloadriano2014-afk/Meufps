@@ -37,6 +37,9 @@ class MEUFPS_API AShooterPickup : public AActor
 {
 	GENERATED_BODY()
 
+	/** Lets the mission builder set up pickups when it builds a level */
+	friend class AMission01Builder;
+
 	/** Collision sphere */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USphereComponent* SphereCollision;

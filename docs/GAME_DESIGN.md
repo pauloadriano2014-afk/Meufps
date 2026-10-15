@@ -53,6 +53,9 @@
 | Marcador de acerto e HUD com reserva de munição | Feito, aguardando teste |
 | Efeitos de impacto, sons de tiro e recarga | Planejado (precisa de assets) |
 | Sistema de missões (objetivos, checkpoints, HUD de objetivo e mensagens) | Feito, aguardando teste. Ver `docs/MISSION_SETUP.md` |
+| Infectados (andarilho, corredor, brutamontes) que ouvem tiros e perseguem | Feito, aguardando teste |
+| Objetivo de interagir (segurar E) com barulho que atrai a horda | Feito, aguardando teste |
+| Construtor automático da Missão 1 | Feito, aguardando teste. Ver `docs/BUILD_MISSION_01.md` |
 
 ### 4.2 Armas [PROPOSTA]
 - **De fogo:** pistola, fuzil de assalto, escopeta, rifle de precisão. O lança-granadas do template pode virar item raro.

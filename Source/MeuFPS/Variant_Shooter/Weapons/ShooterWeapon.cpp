@@ -172,7 +172,7 @@ void AShooterWeapon::Fire()
 	TimeOfLastShot = GetWorld()->GetTimeSeconds();
 
 	// make noise so the AI perception system can hear us
-	MakeNoise(ShotLoudness, PawnOwner, PawnOwner->GetActorLocation(), ShotNoiseRange, NoiseOwnerTag);
+	MakeNoise(ShotLoudness, PawnOwner, PawnOwner->GetActorLocation(), FMath::Max(ShotNoiseRange, MinShotNoiseRange), NoiseOwnerTag);
 
 	// are we full auto?
 	if (bFullAuto)

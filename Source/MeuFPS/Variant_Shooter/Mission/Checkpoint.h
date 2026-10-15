@@ -19,6 +19,8 @@ class MEUFPS_API ACheckpoint : public AActor
 {
 	GENERATED_BODY()
 
+	friend class AMission01Builder;
+
 	/** Area that activates the checkpoint */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	UBoxComponent* Trigger;

@@ -15,6 +15,8 @@ class MEUFPS_API AEliminateObjective : public AMissionObjective
 {
 	GENERATED_BODY()
 
+	friend class AMission01Builder;
+
 protected:
 
 	/** How many enemies have to die */

@@ -29,6 +29,8 @@ class MEUFPS_API AMissionManager : public AActor
 {
 	GENERATED_BODY()
 
+	friend class AMission01Builder;
+
 	/** Root component */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* Root;
@@ -54,6 +56,17 @@ protected:
 	/** If true, the mission starts as soon as the level begins */
 	UPROPERTY(EditAnywhere, Category="Mission")
 	bool bAutoStart = true;
+
+	/** Level to open after the mission is completed. Leave empty to stay in this level */
+	UPROPERTY(EditAnywhere, Category="Mission")
+	FName NextLevelName;
+
+	/** How long to wait after completing the mission before opening the next level */
+	UPROPERTY(EditAnywhere, Category="Mission", meta = (ClampMin = 0, Units = "s"))
+	float NextLevelDelay = 10.0f;
+
+	/** Timer that opens the next level */
+	FTimerHandle NextLevelTimer;
 
 	/** Current state of the mission */
 	EMissionState State = EMissionState::NotStarted;
@@ -113,7 +126,17 @@ public:
 	/** Returns true and the message text if a message is on screen at the given world time */
 	bool GetBanner(float WorldTime, FString& OutText) const;
 
+	/** Returns true, the prompt and the progress (0 to 1) if the player is next to an active interact objective */
+	bool GetInteractPrompt(FString& OutPrompt, float& OutProgress) const;
+
 protected:
+
+	/** Gameplay cleanup */
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	/** Opens the next level. Called by the timer after the mission is completed */
+	void OpenNextLevel();
+
 
 	/** Gameplay initialization */
 	virtual void BeginPlay() override;
