@@ -625,12 +625,12 @@ AStaticMeshActor* AMission01Builder::SpawnBlock(const FVector& Center, const FVe
 	const FRotator Rotation(0.0f, Yaw, 0.0f);
 
 	// the mesh pivot may not be at its middle, so move the actor to compensate
-	const FVector PivotOffset = Rotation.RotateVector(MeshOrigin * Scale);
+	const FVector MeshPivotShift = Rotation.RotateVector(MeshOrigin * Scale);
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	AStaticMeshActor* Block = GetWorld()->SpawnActor<AStaticMeshActor>(Center - PivotOffset, Rotation, SpawnParams);
+	AStaticMeshActor* Block = GetWorld()->SpawnActor<AStaticMeshActor>(Center - MeshPivotShift, Rotation, SpawnParams);
 
 	if (!Block)
 	{

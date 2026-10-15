@@ -116,8 +116,8 @@ void AInfectedAIController::GoIdle()
 
 bool AInfectedAIController::IsPlayerPawn(const AActor* Actor) const
 {
-	const APawn* Pawn = Cast<APawn>(Actor);
-	return Pawn && Pawn->IsPlayerControlled();
+	const APawn* PawnToCheck = Cast<APawn>(Actor);
+	return PawnToCheck && PawnToCheck->IsPlayerControlled();
 }
 
 void AInfectedAIController::Tick(float DeltaSeconds)
