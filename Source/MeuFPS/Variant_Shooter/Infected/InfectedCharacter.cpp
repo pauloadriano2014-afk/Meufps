@@ -4,7 +4,10 @@
 #include "InfectedCharacter.h"
 #include "InfectedAIController.h"
 #include "Variant_Shooter/ShooterGameMode.h"
+#include "MeuFPS.h"
 #include "Animation/AnimInstance.h"
+#include "Animation/AnimSequence.h"
+#include "Animation/Skeleton.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
@@ -16,7 +19,9 @@
 
 AInfectedCharacter::AInfectedCharacter()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	// the tick only picks the animation, so a few checks per second are enough
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.TickInterval = 0.1f;
 
 	GetCapsuleComponent()->InitCapsuleSize(34.0f, 96.0f);
 
@@ -37,6 +42,17 @@ AInfectedCharacter::AInfectedCharacter()
 		GetMesh()->SetAnimInstanceClass(AnimFinder.Class);
 	}
 
+	// zombie animations, if the pack is in the project
+	static ConstructorHelpers::FObjectFinder<UAnimSequence> IdleFinder(TEXT("/Game/ZombieAnimationPack/Animations/Mannequin_UE5/anim_Idle_A.anim_Idle_A"));
+	static ConstructorHelpers::FObjectFinder<UAnimSequence> WalkFinder(TEXT("/Game/ZombieAnimationPack/Animations/Mannequin_UE5/anim_Walk_A.anim_Walk_A"));
+	static ConstructorHelpers::FObjectFinder<UAnimSequence> RunFinder(TEXT("/Game/ZombieAnimationPack/Animations/Mannequin_UE5/anim_Run_A.anim_Run_A"));
+	static ConstructorHelpers::FObjectFinder<UAnimSequence> AttackFinder(TEXT("/Game/ZombieAnimationPack/Animations/Mannequin_UE5/anim_Attack_A.anim_Attack_A"));
+
+	if (IdleFinder.Succeeded()) { IdleAnim = IdleFinder.Object; }
+	if (WalkFinder.Succeeded()) { WalkAnim = WalkFinder.Object; }
+	if (RunFinder.Succeeded()) { RunAnim = RunFinder.Object; }
+	if (AttackFinder.Succeeded()) { AttackAnim = AttackFinder.Object; }
+
 	// face the way it walks
 	bUseControllerRotationYaw = false;
 	GetCharacterMovement()->bOrientRotationToMovement = true;
@@ -56,6 +72,98 @@ void AInfectedCharacter::BeginPlay()
 
 	CurrentHP = MaxHP;
 	GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
+
+	// use the zombie animations only if every one of them fits the skeleton of the body
+	const USkeletalMesh* BodyMesh = GetMesh()->GetSkeletalMeshAsset();
+	const USkeleton* BodySkeleton = BodyMesh ? BodyMesh->GetSkeleton() : nullptr;
+
+	if (IdleAnim && WalkAnim && RunAnim && AttackAnim && BodySkeleton)
+	{
+		bUseAnimSet = IdleAnim->GetSkeleton() == BodySkeleton
+			&& WalkAnim->GetSkeleton() == BodySkeleton
+			&& RunAnim->GetSkeleton() == BodySkeleton
+			&& AttackAnim->GetSkeleton() == BodySkeleton;
+
+		if (!bUseAnimSet)
+		{
+			UE_LOG(LogMeuFPS, Warning, TEXT("%s: the zombie animations do not use the skeleton of the body. Keeping the template animation"), *GetName());
+		}
+	}
+
+	if (bUseAnimSet)
+	{
+		// start at a random point of the idle so a group does not move in unison
+		PlayInfectedAnim(EInfectedAnim::Idle);
+		GetMesh()->SetPosition(FMath::FRandRange(0.0f, IdleAnim->GetPlayLength()));
+	}
+}
+
+void AInfectedCharacter::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	if (!bUseAnimSet || bIsDead)
+	{
+		return;
+	}
+
+	// let the attack finish before going back to moving
+	if (GetWorld()->GetTimeSeconds() < AttackAnimEndTime)
+	{
+		return;
+	}
+
+	const float Speed = GetVelocity().Size2D();
+
+	if (Speed < 20.0f)
+	{
+		PlayInfectedAnim(EInfectedAnim::Idle);
+
+	} else if (Speed < RunAnimSpeed) {
+
+		PlayInfectedAnim(EInfectedAnim::Walk);
+
+	} else {
+
+		PlayInfectedAnim(EInfectedAnim::Run);
+	}
+}
+
+void AInfectedCharacter::PlayInfectedAnim(EInfectedAnim Anim)
+{
+	UAnimSequence* Sequence = nullptr;
+
+	switch (Anim)
+	{
+	case EInfectedAnim::Idle:
+		Sequence = IdleAnim;
+		break;
+
+	case EInfectedAnim::Walk:
+		Sequence = WalkAnim;
+		break;
+
+	case EInfectedAnim::Run:
+		Sequence = RunAnim;
+		break;
+
+	case EInfectedAnim::Attack:
+		Sequence = AttackAnim;
+		break;
+
+	default:
+		break;
+	}
+
+	const bool bLoop = Anim != EInfectedAnim::Attack;
+
+	if (!Sequence || (bLoop && Anim == CurrentAnim))
+	{
+		return;
+	}
+
+	CurrentAnim = Anim;
+	GetMesh()->PlayAnimation(Sequence, bLoop);
 }
 
 void AInfectedCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -151,6 +259,12 @@ bool AInfectedCharacter::TryAttack(AActor* Target)
 
 	LastAttackTime = Now;
 	AttackTarget = Target;
+
+	if (bUseAnimSet)
+	{
+		PlayInfectedAnim(EInfectedAnim::Attack);
+		AttackAnimEndTime = Now + FMath::Min(AttackAnim->GetPlayLength(), AttackCooldown * 0.9f);
+	}
 
 	BP_OnAttack();
 

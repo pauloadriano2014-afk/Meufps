@@ -20,6 +20,18 @@ enum class EInfectedType : uint8
 	Brute
 };
 
+class UAnimSequence;
+
+/** Which looping or one-shot animation is playing */
+enum class EInfectedAnim : uint8
+{
+	None,
+	Idle,
+	Walk,
+	Run,
+	Attack
+};
+
 /**
  *  A melee-only enemy that hunts the player by sight and by sound
  *  Its behavior is in the Infected AI Controller. This class holds its body, health and attack
@@ -78,6 +90,32 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Infected", meta = (ClampMin = 0, Units = "s"))
 	float BodyLifeSpan = 10.0f;
 
+	/** Animations from the Zombie Animation Pack. Found automatically when the pack is in the project. Leave them empty to keep the template animation */
+	UPROPERTY(EditAnywhere, Category="Infected|Animation")
+	TObjectPtr<UAnimSequence> IdleAnim;
+
+	UPROPERTY(EditAnywhere, Category="Infected|Animation")
+	TObjectPtr<UAnimSequence> WalkAnim;
+
+	UPROPERTY(EditAnywhere, Category="Infected|Animation")
+	TObjectPtr<UAnimSequence> RunAnim;
+
+	UPROPERTY(EditAnywhere, Category="Infected|Animation")
+	TObjectPtr<UAnimSequence> AttackAnim;
+
+	/** Above this speed the run animation plays instead of the walk */
+	UPROPERTY(EditAnywhere, Category="Infected|Animation", meta = (ClampMin = 0))
+	float RunAnimSpeed = 300.0f;
+
+	/** True when the animations above fit the body and are driving it */
+	bool bUseAnimSet = false;
+
+	/** Animation currently playing */
+	EInfectedAnim CurrentAnim = EInfectedAnim::None;
+
+	/** Game time when the attack animation ends */
+	float AttackAnimEndTime = 0.0f;
+
 	/** Current health */
 	float CurrentHP = 0.0f;
 
@@ -122,6 +160,12 @@ protected:
 
 	/** Gameplay cleanup */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	/** Picks idle, walk or run from the current speed */
+	virtual void Tick(float DeltaSeconds) override;
+
+	/** Plays one of the animations. Looping ones are not restarted if already playing */
+	void PlayInfectedAnim(EInfectedAnim Anim);
 
 	/** Applies the damage of an attack once the windup is over */
 	void DealAttackDamage();
